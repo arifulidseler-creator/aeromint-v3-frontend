@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
-  "https://YOUR-AEROMINT-V3-BACKEND.up.railway.app";
+  "https://aeromint-v3-backend-production.up.railway.app";
 
 const tg = window.Telegram?.WebApp;
 
