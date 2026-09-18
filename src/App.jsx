@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -6,1479 +6,389 @@ const API_BASE =
 
 const tg = window.Telegram?.WebApp;
 
-const TABS = [
-  { id: "mining", label: "Mining", icon: "⛏️" },
-  { id: "tasks", label: "Tasks", icon: "🎯" },
-  { id: "referrals", label: "Referrals", icon: "👥" },
-  { id: "account", label: "Account", icon: "👤" },
-];
+const fmt = (n, digits = 4) => Number(n || 0).toFixed(digits);
 
-function formatAmount(value) {
-  const number = Number(value || 0);
-  return number.toFixed(2);
+function Icon({ name, size = 24 }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+  };
+
+  const paths = {
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></>,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.7 1.7-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-2.4v-.2a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-1.7-1.7.06-.06A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.56-1.03H6.6v-2.4h.24A1.7 1.7 0 0 0 8.4 10a1.7 1.7 0 0 0-.34-1.88L8 8.06l1.7-1.7.06.06A1.7 1.7 0 0 0 11.64 6 1.7 1.7 0 0 0 12.67 4.4V4h2.4v.4A1.7 1.7 0 0 0 16.1 6a1.7 1.7 0 0 0 1.88.34l.06-.06 1.7 1.7-.06.06A1.7 1.7 0 0 0 19.4 10a1.7 1.7 0 0 0 1.56 1.03h.24v2.4h-.24A1.7 1.7 0 0 0 19.4 15Z"/></>,
+    arrow: <><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></>,
+    back: <><path d="m15 18-6-6 6-6"/></>,
+    wallet: <><path d="M20 7V6a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15v9a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3V7"/><path d="M16 14h.01"/></>,
+    pickaxe: <><path d="m14 4 6 6"/><path d="M13 5 5 13"/><path d="m3 21 8-8"/><path d="m7 17 2 2"/></>,
+    clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
+    calendar: <><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 9h18"/><path d="M8 13h2M12 13h2M16 13h.01M8 17h2M12 17h2"/></>,
+    coins: <><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v5c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 11v5c0 1.66 3.13 3 7 3s7-1.34 7-3v-5"/></>,
+    gift: <><rect x="3" y="10" width="18" height="10" rx="2"/><path d="M12 10v10M2 7h20v3H2z"/><path d="M12 7H8.5a2.5 2.5 0 1 1 2.5-2.5V7ZM12 7h3.5A2.5 2.5 0 1 0 13 4.5V7Z"/></>,
+    info: <><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
+    user: <><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>,
+    share: <><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></>,
+    link: <><path d="M10 13a5 5 0 0 0 7.54.54l2-2a5 5 0 0 0-7.07-7.07l-1.14 1.14"/><path d="M14 11a5 5 0 0 0-7.54-.54l-2 2a5 5 0 0 0 7.07 7.07l1.14-1.14"/></>,
+    check: <><path d="m5 12 4 4L19 6"/></>,
+    grid: <><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></>,
+    play: <><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m10 9 5 3-5 3V9Z"/></>,
+    plusUser: <><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M19 8v6M16 11h6"/></>,
+    shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></>,
+    headset: <><path d="M4 13a8 8 0 0 1 16 0"/><path d="M4 13v5a2 2 0 0 0 2 2h2v-7H6a2 2 0 0 0-2 2ZM20 13v5a2 2 0 0 1-2 2h-2v-7h2a2 2 0 0 1 2 2Z"/></>,
+    crown: <><path d="m3 8 4 4 5-7 5 7 4-4-2 12H5L3 8Z"/></>,
+    history: <><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5M12 7v5l3 2"/></>,
+  };
+  return <svg {...common}>{paths[name] || paths.info}</svg>;
 }
 
-function formatTime(seconds) {
-  const total = Math.max(0, Number(seconds || 0));
-
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const secs = total % 60;
-
-  return [hours, minutes, secs]
-    .map((v) => String(v).padStart(2, "0"))
-    .join(":");
-}
-
-function getTelegramUser() {
-  return tg?.initDataUnsafe?.user || null;
-}
-
-function getInitData() {
-  return tg?.initData || "";
-}
-
-function getStartParam() {
-  const telegramParam = tg?.initDataUnsafe?.start_param;
-
-  if (telegramParam) {
-    return telegramParam;
-  }
-
-  const params = new URLSearchParams(window.location.search);
-
+function Header() {
   return (
-    params.get("startapp") ||
-    params.get("start_param") ||
-    params.get("ref") ||
-    ""
-  );
-}
-
-function getErrorMessage(error) {
-  if (!error) return "Something went wrong.";
-
-  if (typeof error === "string") return error;
-
-  return error.message || "Something went wrong.";
-}
-
-function getTaskId(task) {
-  return task?.id ?? task?.task_id;
-}
-
-function getTaskReward(task) {
-  return Number(task?.reward ?? task?.reward_amount ?? 0);
-}
-
-function getTaskStatus(task) {
-  return (
-    task?.status ||
-    task?.user_status ||
-    task?.completion_status ||
-    (task?.completed ? "completed" : "")
-  );
-}
-
-function isTaskCompleted(task) {
-  const status = String(getTaskStatus(task)).toLowerCase();
-
-  return (
-    task?.completed === true ||
-    task?.claimed === true ||
-    status === "completed" ||
-    status === "claimed"
-  );
-}
-
-function isTaskStarted(task) {
-  const status = String(getTaskStatus(task)).toLowerCase();
-
-  return (
-    task?.started === true ||
-    status === "started" ||
-    status === "pending" ||
-    status === "verified"
-  );
-}
-
-function App() {
-  const [page, setPage] = useState("mining");
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const [user, setUser] = useState(null);
-  const [dashboard, setDashboard] = useState(null);
-  const [mining, setMining] = useState(null);
-  const [tasks, setTasks] = useState([]);
-  const [referrals, setReferrals] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-
-  const [taskTab, setTaskTab] = useState("all");
-
-  const [actionLoading, setActionLoading] = useState("");
-  const [message, setMessage] = useState("");
-
-  const [countdown, setCountdown] = useState(0);
-
-  const telegramUser = getTelegramUser();
-
-  const api = useCallback(
-    async (path, options = {}) => {
-      const headers = {
-        "Content-Type": "application/json",
-        "X-Telegram-Init-Data": getInitData(),
-        ...(options.headers || {}),
-      };
-
-      const response = await fetch(`${API_BASE}${path}`, {
-        ...options,
-        headers,
-      });
-
-      let data = null;
-
-      try {
-        data = await response.json();
-      } catch {
-        data = null;
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            data?.message ||
-            `Request failed with status ${response.status}`
-        );
-      }
-
-      return data;
-    },
-    []
-  );
-
-  const loadUser = useCallback(async () => {
-    const result = await api("/api/me");
-
-    setUser(result?.user || result || null);
-
-    return result;
-  }, [api]);
-
-  const loadDashboard = useCallback(async () => {
-    const result = await api("/api/dashboard");
-
-    setDashboard(result);
-
-    return result;
-  }, [api]);
-
-  const loadMining = useCallback(async () => {
-    const result = await api("/api/mining");
-
-    const data = result?.mining || result;
-
-    setMining(data);
-
-    return data;
-  }, [api]);
-
-  const loadTasks = useCallback(async () => {
-    const result = await api("/api/tasks");
-
-    const data = Array.isArray(result)
-      ? result
-      : result?.tasks || result?.data || [];
-
-    setTasks(data);
-
-    return data;
-  }, [api]);
-
-  const loadReferrals = useCallback(async () => {
-    const result = await api("/api/referrals");
-
-    const data = result?.referrals || result;
-
-    setReferrals(data);
-
-    return data;
-  }, [api]);
-
-  const loadTransactions = useCallback(async () => {
-    const result = await api("/api/transactions");
-
-    const data = Array.isArray(result)
-      ? result
-      : result?.transactions || result?.data || [];
-
-    setTransactions(data);
-
-    return data;
-  }, [api]);
-
-  const refreshAll = useCallback(async () => {
-    await Promise.all([
-      loadUser(),
-      loadDashboard(),
-      loadMining(),
-      loadTasks(),
-      loadReferrals(),
-      loadTransactions(),
-    ]);
-  }, [
-    loadUser,
-    loadDashboard,
-    loadMining,
-    loadTasks,
-    loadReferrals,
-    loadTransactions,
-  ]);
-
-  const authenticate = useCallback(async () => {
-    const initData = getInitData();
-
-    if (!initData) {
-      throw new Error(
-        "Please open AeroMint from the Telegram Mini App."
-      );
-    }
-
-    const result = await api("/api/auth/telegram", {
-      method: "POST",
-      body: JSON.stringify({
-        initData,
-        referralCode: getStartParam() || undefined,
-      }),
-    });
-
-    if (result?.user) {
-      setUser(result.user);
-    }
-
-    return result;
-  }, [api]);
-
-  useEffect(() => {
-    if (tg) {
-      tg.ready();
-
-      try {
-        tg.expand();
-      } catch {
-        // Ignore Telegram UI errors.
-      }
-    }
-
-    let mounted = true;
-
-    async function start() {
-      try {
-        setLoading(true);
-        setError("");
-
-        await authenticate();
-        await refreshAll();
-
-        if (mounted) {
-          setLoading(false);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(getErrorMessage(err));
-          setLoading(false);
-        }
-      }
-    }
-
-    start();
-
-    return () => {
-      mounted = false;
-    };
-  }, [authenticate, refreshAll]);
-
-  useEffect(() => {
-    if (!mining) {
-      setCountdown(0);
-      return undefined;
-    }
-
-    const active =
-      mining?.active === true ||
-      mining?.is_active === true ||
-      mining?.status === "active";
-
-    if (!active) {
-      setCountdown(0);
-      return undefined;
-    }
-
-    const endValue =
-      mining?.ends_at ||
-      mining?.end_time ||
-      mining?.endsAt ||
-      mining?.session_ends_at;
-
-    if (endValue) {
-      const end = new Date(endValue).getTime();
-
-      const update = () => {
-        const remaining = Math.max(
-          0,
-          Math.floor((end - Date.now()) / 1000)
-        );
-
-        setCountdown(remaining);
-      };
-
-      update();
-
-      const timer = setInterval(update, 1000);
-
-      return () => clearInterval(timer);
-    }
-
-    const remaining =
-      Number(
-        mining?.remaining_seconds ??
-          mining?.seconds_remaining ??
-          mining?.time_remaining ??
-          0
-      );
-
-    setCountdown(remaining);
-
-    return undefined;
-  }, [mining]);
-
-  useEffect(() => {
-    if (!message) return undefined;
-
-    const timer = setTimeout(() => {
-      setMessage("");
-    }, 3500);
-
-    return () => clearTimeout(timer);
-  }, [message]);
-
-  const balance = useMemo(() => {
-    return Number(
-      user?.balance ??
-        user?.amt_balance ??
-        dashboard?.balance ??
-        dashboard?.amt_balance ??
-        0
-    );
-  }, [user, dashboard]);
-
-  const miningRate = useMemo(() => {
-    return Number(
-      mining?.rate_per_hour ??
-        mining?.mining_rate_per_hour ??
-        dashboard?.mining_rate_per_hour ??
-        1
-    );
-  }, [mining, dashboard]);
-
-  const miningToday = useMemo(() => {
-    return Number(
-      mining?.today_earned ??
-        mining?.earned_today ??
-        mining?.today ??
-        0
-    );
-  }, [mining]);
-
-  const miningProgress = useMemo(() => {
-    const value =
-      mining?.progress ??
-      mining?.progress_percent ??
-      mining?.percentage ??
-      null;
-
-    if (value !== null && value !== undefined) {
-      return Math.max(0, Math.min(100, Number(value)));
-    }
-
-    const sessionHours = 24;
-    const remainingHours = countdown / 3600;
-
-    if (countdown > 0) {
-      return Math.max(
-        0,
-        Math.min(
-          100,
-          ((sessionHours - remainingHours) / sessionHours) * 100
-        )
-      );
-    }
-
-    return 0;
-  }, [mining, countdown]);
-
-  const miningActive =
-    mining?.active === true ||
-    mining?.is_active === true ||
-    mining?.status === "active";
-
-  const miningCompleted =
-    mining?.completed === true ||
-    mining?.status === "completed";
-
-  const filteredTasks = useMemo(() => {
-    if (taskTab === "all") {
-      return tasks;
-    }
-
-    return tasks.filter((task) => {
-      const category = String(
-        task?.category || task?.type || task?.task_type || ""
-      ).toLowerCase();
-
-      if (taskTab === "social") {
-        return (
-          category.includes("social") ||
-          category.includes("telegram") ||
-          category.includes("video")
-        );
-      }
-
-      if (taskTab === "daily") {
-        return (
-          category.includes("daily") ||
-          task?.daily === true ||
-          task?.frequency === "daily"
-        );
-      }
-
-      if (taskTab === "special") {
-        return (
-          category.includes("special") ||
-          category.includes("referral") ||
-          category.includes("bonus")
-        );
-      }
-
-      return true;
-    });
-  }, [tasks, taskTab]);
-
-  async function handleStartMining() {
-    if (actionLoading) return;
-
-    try {
-      setActionLoading("mining");
-      setError("");
-      setMessage("");
-
-      const result = await api("/api/mining/start", {
-        method: "POST",
-      });
-
-      setMining(result?.mining || result);
-
-      await Promise.all([loadDashboard(), loadUser()]);
-
-      setMessage("Mining started successfully! ⚡");
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setActionLoading("");
-    }
-  }
-
-  async function handleSyncMining() {
-    if (actionLoading) return;
-
-    try {
-      setActionLoading("mining-sync");
-      setError("");
-
-      const result = await api("/api/mining/sync", {
-        method: "POST",
-      });
-
-      setMining(result?.mining || result);
-
-      await Promise.all([loadDashboard(), loadUser()]);
-
-      if (result?.completed || result?.message) {
-        setMessage(
-          result?.message ||
-            "Mining Session Completed! You earned 24.00 AMT"
-        );
-      }
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setActionLoading("");
-    }
-  }
-
-  async function handleClaimMining() {
-    if (actionLoading) return;
-
-    try {
-      setActionLoading("mining-claim");
-      setError("");
-
-      const result = await api("/api/mining/claim", {
-        method: "POST",
-      });
-
-      setMining(result?.mining || result);
-
-      await Promise.all([
-        loadDashboard(),
-        loadUser(),
-        loadTransactions(),
-      ]);
-
-      setMessage(
-        result?.message ||
-          "Mining Session Completed! You earned 24.00 AMT"
-      );
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setActionLoading("");
-    }
-  }
-
-  async function handleDailyClaim() {
-    if (actionLoading) return;
-
-    try {
-      setActionLoading("daily");
-      setError("");
-
-      const result = await api("/api/daily/claim", {
-        method: "POST",
-      });
-
-      await Promise.all([
-        loadUser(),
-        loadDashboard(),
-        loadTransactions(),
-      ]);
-
-      setMessage(result?.message || "Daily reward claimed! +0.50 AMT");
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setActionLoading("");
-    }
-  }
-
-  async function handleTaskStart(task) {
-    const taskId = getTaskId(task);
-
-    if (!taskId || actionLoading) return;
-
-    try {
-      setActionLoading(`task-start-${taskId}`);
-      setError("");
-
-      await api(`/api/tasks/${taskId}/start`, {
-        method: "POST",
-      });
-
-      await loadTasks();
-
-      setMessage("Task started.");
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setActionLoading("");
-    }
-  }
-
-  async function handleTaskVerify(task) {
-    const taskId = getTaskId(task);
-
-    if (!taskId || actionLoading) return;
-
-    try {
-      setActionLoading(`task-verify-${taskId}`);
-      setError("");
-
-      const result = await api(`/api/tasks/${taskId}/verify`, {
-        method: "POST",
-        body: JSON.stringify({
-          verificationType:
-            task?.verification_type ||
-            task?.verificationType ||
-            "none",
-        }),
-      });
-
-      await loadTasks();
-
-      if (result?.verified || result?.message) {
-        setMessage(result?.message || "Task verified.");
-      }
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setActionLoading("");
-    }
-  }
-
-  async function handleTaskClaim(task) {
-    const taskId = getTaskId(task);
-
-    if (!taskId || actionLoading) return;
-
-    try {
-      setActionLoading(`task-claim-${taskId}`);
-      setError("");
-
-      const result = await api(`/api/tasks/${taskId}/claim`, {
-        method: "POST",
-      });
-
-      await Promise.all([
-        loadTasks(),
-        loadUser(),
-        loadDashboard(),
-        loadTransactions(),
-      ]);
-
-      setMessage(
-        result?.message ||
-          `Reward claimed! +${formatAmount(getTaskReward(task))} AMT`
-      );
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setActionLoading("");
-    }
-  }
-
-  async function copyReferralLink() {
-    const code =
-      referrals?.referral_code ||
-      referrals?.referralCode ||
-      user?.referral_code ||
-      user?.referralCode ||
-      "";
-
-    if (!code) {
-      setError("Referral code is not available yet.");
-      return;
-    }
-
-    const botUsername =
-      referrals?.bot_username ||
-      referrals?.botUsername ||
-      "AeroMintXBot";
-
-    const link = `https://t.me/${botUsername}?start=ref_${code}`;
-
-    try {
-      await navigator.clipboard.writeText(link);
-      setMessage("Referral link copied!");
-    } catch {
-      setError("Could not copy the referral link.");
-    }
-  }
-
-  function openTaskLink(task) {
-    const url =
-      task?.url ||
-      task?.link ||
-      task?.task_url ||
-      task?.telegram_url ||
-      "";
-
-    if (!url) {
-      return false;
-    }
-
-    if (tg?.openTelegramLink && url.includes("t.me/")) {
-      tg.openTelegramLink(url);
-    } else if (tg?.openLink) {
-      tg.openLink(url);
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-
-    return true;
-  }
-
-  async function handleTaskAction(task) {
-    const taskId = getTaskId(task);
-
-    if (!taskId) return;
-
-    if (isTaskCompleted(task)) {
-      return;
-    }
-
-    if (!isTaskStarted(task)) {
-      openTaskLink(task);
-      await handleTaskStart(task);
-      return;
-    }
-
-    await handleTaskVerify(task);
-  }
-
-  if (loading) {
-    return (
-      <div className="app-loading">
-        <div className="loading-logo">⚡</div>
-        <h2>AeroMint</h2>
-        <p>Loading your account...</p>
+    <header className="top-header">
+      <div className="brand">
+        <img src="./aeromint-logo.png" alt="AeroMint" className="brand-logo" />
+        <div>
+          <div className="brand-name"><span>Aero</span> <b>Mint</b></div>
+          <div className="brand-tag">Mine <i>•</i> Earn <i>•</i> Grow</div>
+        </div>
       </div>
-    );
-  }
-
-  if (error && !user) {
-    return (
-      <div className="app-loading">
-        <div className="loading-logo">⚡</div>
-        <h2>AeroMint</h2>
-
-        <p className="error-text">{error}</p>
-
-        <button
-          className="primary-btn"
-          onClick={() => window.location.reload()}
-        >
-          Retry
-        </button>
+      <div className="header-actions">
+        <button className="icon-button notification" aria-label="Notifications"><Icon name="bell" size={27}/><span /></button>
+        <button className="icon-button" aria-label="Settings"><Icon name="settings" size={28}/></button>
       </div>
-    );
-  }
+    </header>
+  );
+}
 
+function SectionTitle({ title, subtitle, right, onBack }) {
   return (
-    <div className="app-shell">
-      <header className="top-header">
-        <div className="brand">
-          <div className="brand-icon">⚡</div>
-
-          <div>
-            <div className="brand-name">AeroMint</div>
-            <div className="brand-subtitle">AMT Rewards</div>
-          </div>
-        </div>
-
-        <div className="header-balance">
-          <span>AMT</span>
-          <strong>{formatAmount(balance)}</strong>
-        </div>
-      </header>
-
-      {error && (
-        <div className="alert error-alert">
-          <span>⚠️</span>
-          <span>{error}</span>
-          <button onClick={() => setError("")}>×</button>
-        </div>
-      )}
-
-      {message && (
-        <div className="alert success-alert">
-          <span>✓</span>
-          <span>{message}</span>
-          <button onClick={() => setMessage("")}>×</button>
-        </div>
-      )}
-
-      <main className="main-content">
-        {page === "mining" && (
-          <MiningPage
-            user={user}
-            balance={balance}
-            mining={mining}
-            miningRate={miningRate}
-            miningToday={miningToday}
-            miningProgress={miningProgress}
-            miningActive={miningActive}
-            miningCompleted={miningCompleted}
-            countdown={countdown}
-            actionLoading={actionLoading}
-            onStart={handleStartMining}
-            onSync={handleSyncMining}
-            onClaim={handleClaimMining}
-          />
-        )}
-
-        {page === "tasks" && (
-          <TasksPage
-            tasks={filteredTasks}
-            allTasks={tasks}
-            taskTab={taskTab}
-            setTaskTab={setTaskTab}
-            actionLoading={actionLoading}
-            onTaskAction={handleTaskAction}
-            onTaskVerify={handleTaskVerify}
-            onTaskClaim={handleTaskClaim}
-            onDailyClaim={handleDailyClaim}
-          />
-        )}
-
-        {page === "referrals" && (
-          <ReferralPage
-            referrals={referrals}
-            user={user}
-            onCopy={copyReferralLink}
-          />
-        )}
-
-        {page === "account" && (
-          <AccountPage
-            user={user}
-            balance={balance}
-            transactions={transactions}
-          />
-        )}
-      </main>
-
-      <nav className="bottom-nav">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            className={`nav-item ${page === tab.id ? "active" : ""}`}
-            onClick={() => setPage(tab.id)}
-          >
-            <span className="nav-icon">{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </nav>
+    <div className="section-title">
+      <button className="back-button" onClick={onBack || (() => {})} aria-label="Back"><Icon name="back" size={34}/></button>
+      <div className="section-copy">
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+      </div>
+      {right}
     </div>
   );
 }
 
-function MiningPage({
-  balance,
-  mining,
-  miningRate,
-  miningToday,
-  miningProgress,
-  miningActive,
-  miningCompleted,
-  countdown,
-  actionLoading,
-  onStart,
-  onSync,
-  onClaim,
-}) {
+function BalanceCard({ balance, label = "AMT Balance" }) {
   return (
-    <section className="page mining-page">
-      <div className="page-heading">
-        <div>
-          <h1>Mining</h1>
-          <p>Earn AMT every hour</p>
-        </div>
+    <div className="balance-card">
+      <div className="balance-icon"><Icon name="wallet" size={29}/></div>
+      <div className="balance-copy">
+        <span>{label}</span>
+        <strong>{fmt(balance)} <em>AMT</em></strong>
+        <small>≈ 0.00 (Not a real currency value)</small>
       </div>
-
-      <div className="balance-card">
-        <div className="balance-label">Your Balance</div>
-        <div className="balance-value">
-          {formatAmount(balance)}
-          <span> AMT</span>
-        </div>
-      </div>
-
-      <div className="mining-card">
-        <div className="mining-status">
-          <div
-            className={`status-dot ${
-              miningActive ? "active" : ""
-            }`}
-          />
-
-          <span>
-            {miningActive
-              ? "Mining Active"
-              : miningCompleted
-              ? "Session Completed"
-              : "Mining Inactive"}
-          </span>
-        </div>
-
-        <div className="mining-amount">
-          <strong>+{formatAmount(miningRate)}</strong>
-          <span> AMT / hour</span>
-        </div>
-
-        {miningActive ? (
-          <>
-            <div className="countdown-label">
-              Time Remaining
-            </div>
-
-            <div className="countdown">
-              {formatTime(countdown)}
-            </div>
-
-            <div className="progress-section">
-              <div className="progress-header">
-                <span>Mining Progress</span>
-                <strong>
-                  {Math.round(miningProgress)}%
-                </strong>
-              </div>
-
-              <div className="progress-bar">
-                <div
-                  className="progress-fill"
-                  style={{
-                    width: `${miningProgress}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="mining-stats">
-              <div>
-                <span>Today</span>
-                <strong>
-                  {formatAmount(miningToday)} AMT
-                </strong>
-              </div>
-
-              <div>
-                <span>Daily Max</span>
-                <strong>24.00 AMT</strong>
-              </div>
-            </div>
-
-            {countdown <= 0 && (
-              <button
-                className="primary-btn"
-                disabled={actionLoading === "mining-sync"}
-                onClick={onSync}
-              >
-                {actionLoading === "mining-sync"
-                  ? "Syncing..."
-                  : "Complete Session"}
-              </button>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="mining-illustration">⚡</div>
-
-            <p className="mining-description">
-              Start a 24-hour mining session and earn up to
-              24.00 AMT.
-            </p>
-
-            <button
-              className="primary-btn mining-start-btn"
-              disabled={Boolean(actionLoading)}
-              onClick={onStart}
-            >
-              {actionLoading === "mining"
-                ? "Starting..."
-                : "Start Mining"}
-            </button>
-
-            {miningCompleted && (
-              <button
-                className="secondary-btn"
-                disabled={Boolean(actionLoading)}
-                onClick={onClaim}
-              >
-                {actionLoading === "mining-claim"
-                  ? "Claiming..."
-                  : "Claim 24.00 AMT"}
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
-      <div className="info-card">
-        <div className="info-icon">ℹ️</div>
-
-        <div>
-          <strong>How Mining Works</strong>
-
-          <p>
-            Start one 24-hour session. Your mining rate is
-            {` ${formatAmount(miningRate)} AMT/hour`}.
-          </p>
-
-          <p>
-            When the session ends, claim your earned AMT and
-            start another session.
-          </p>
-        </div>
-      </div>
-    </section>
+      <Icon name="arrow" size={28}/>
+    </div>
   );
 }
 
-function TasksPage({
-  tasks,
-  allTasks,
-  taskTab,
-  setTaskTab,
-  actionLoading,
-  onTaskAction,
-  onTaskVerify,
-  onTaskClaim,
-  onDailyClaim,
-}) {
-  const dailyTask = allTasks.find((task) => {
-    const title = String(task?.title || "").toLowerCase();
+function Mining({ data, onRefresh, onStart, busy }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
-    return (
-      title.includes("daily check") ||
-      task?.task_type === "daily_checkin"
-    );
-  });
+  const session = data?.session;
+  const active = Boolean(data?.active && session);
+  const ends = session?.endsAt ? new Date(session.endsAt).getTime() : 0;
+  const remaining = active ? Math.max(0, Math.ceil((ends - now) / 1000)) : 0;
+  const hh = String(Math.floor(remaining / 3600)).padStart(2, "0");
+  const mm = String(Math.floor((remaining % 3600) / 60)).padStart(2, "0");
+  const ss = String(remaining % 60).padStart(2, "0");
+  const max = Number(session?.maxReward || 24);
+  const earned = Number(data?.earned || 0);
+  const progress = Math.min(100, max ? (earned / max) * 100 : 0);
 
   return (
-    <section className="page tasks-page">
-      <div className="page-heading">
-        <div>
-          <h1>Tasks</h1>
-          <p>Complete tasks and earn AMT</p>
+    <main className="screen">
+      <SectionTitle title="Mining" subtitle="Earn AMT by mining"
+        right={<button className="outline-pill"><Icon name="info" size={20}/> How It Works?</button>}
+      />
+
+      <BalanceCard balance={data?.balance} />
+
+      <section className="hero-mining">
+        <div className="hero-visual">
+          <div className="energy-ring" />
+          <img src="./aeromint-logo.png" alt="" />
         </div>
+        <div className="hero-text">
+          <h2>{active ? "Mining Active" : "Start Mining"}</h2>
+          <h3>{active ? "Earn AMT Every Hour" : "Earn AMT Every Hour"}</h3>
+          <p>The more you mine, the more you earn. Keep the bot active and get rewards!</p>
+        </div>
+        <button className={`main-action ${active ? "active" : ""}`} onClick={active ? onRefresh : onStart} disabled={busy}>
+          <Icon name={active ? "clock" : "pickaxe"} size={31}/>
+          <span>{busy ? "Please wait..." : active ? `Mining ${hh}:${mm}:${ss}` : "Start Mining"}</span>
+          {!active && <Icon name="arrow" size={28}/>}
+        </button>
+        <div className="stats-grid">
+          <Stat icon="pickaxe" label="Mining Rate" value="+1.00 AMT / hour" accent />
+          <Stat icon="clock" label="Daily Mining" value="24.00 AMT" sub="(est.)" accent />
+          <Stat icon="coins" label="Total Mined" value={`${fmt(data?.totalMined)} AMT`} />
+          <Stat icon="calendar" label="Active Time" value={active ? `${hh}:${mm}:${ss}` : "00:00:00"} />
+        </div>
+      </section>
+
+      <section className="progress-card">
+        <h3>Mining Progress</h3>
+        <div className="progress-row">
+          <div className="progress-circle" style={{"--p": `${progress}%`}}>
+            <div><b>{Math.round(progress)}%</b></div>
+          </div>
+          <div className="progress-main">
+            <div className="progress-numbers"><b>{earned.toFixed(4)}</b> / {max.toFixed(2)} AMT</div>
+            <div className="progress-track"><span style={{width: `${progress}%`}} /></div>
+            <p>Next reward at {max.toFixed(2)} AMT</p>
+          </div>
+          <div className="bonus-box"><Icon name="gift" size={27}/><span>Bonus<br/><b>+0.50 AMT</b></span></div>
+        </div>
+      </section>
+
+      <div className="online-strip">
+        <Icon name="info" size={23}/>
+        <div><b>Keep the bot online</b><small>Mining continues as long as the bot is active.</small></div>
+        <span className="online-pill"><Icon name="check" size={18}/> Online</span>
       </div>
 
+      {active && remaining === 0 && (
+        <div className="completion-message">Mining Session Completed! You earned {max.toFixed(2)} AMT</div>
+      )}
+    </main>
+  );
+}
+
+function Stat({icon,label,value,sub,accent}) {
+  return <div className="stat"><Icon name={icon} size={30}/><span>{label}</span><b className={accent ? "accent" : ""}>{value}</b>{sub && <small>{sub}</small>}</div>;
+}
+
+function Tasks({ tasks, balance, refresh, onOpenTask }) {
+  const [tab, setTab] = useState("all");
+  const tabs = [["all","All Tasks","grid"],["social","Social","share"],["daily","Daily","calendar"],["special","Special","gift"]];
+  const filtered = useMemo(() => {
+    if (tab === "all") return tasks || [];
+    return (tasks || []).filter(t => String(t.category || "social").toLowerCase() === tab);
+  }, [tasks, tab]);
+
+  return (
+    <main className="screen">
+      <SectionTitle title="Tasks" subtitle="Complete tasks and earn AMT"
+        right={<div className="mini-balance"><Icon name="wallet" size={23}/><span>Your Balance<br/><b>{fmt(balance)} <em>AMT</em></b></span></div>}
+      />
+      <section className="feature-banner">
+        <div className="feature-icon"><Icon name="gift" size={36}/></div>
+        <div><h2>Complete Tasks<br/>Earn More <span>AMT</span></h2><p>Simple tasks, real rewards. Complete daily tasks and grow your balance!</p></div>
+        <img src="./aeromint-logo.png" alt="" />
+      </section>
       <div className="task-tabs">
-        {[
-          ["all", "All"],
-          ["social", "Social"],
-          ["daily", "Daily"],
-          ["special", "Special"],
-        ].map(([id, label]) => (
-          <button
-            key={id}
-            className={taskTab === id ? "active" : ""}
-            onClick={() => setTaskTab(id)}
-          >
-            {label}
-          </button>
+        {tabs.map(([id,label,icon]) => <button key={id} className={tab===id ? "selected":""} onClick={()=>setTab(id)}><Icon name={icon} size={25}/>{label}</button>)}
+      </div>
+      <div className="task-list">
+        {filtered.length === 0 ? <div className="empty-card">No tasks available in this category.</div> : filtered.map(task => (
+          <TaskCard key={task.id} task={task} onOpen={onOpenTask}/>
         ))}
       </div>
-
-      {taskTab === "daily" && dailyTask && (
-        <button
-          className="daily-check-card"
-          onClick={onDailyClaim}
-          disabled={Boolean(actionLoading)}
-        >
-          <div className="task-icon">🎁</div>
-
-          <div className="task-info">
-            <strong>Daily Check-in</strong>
-            <span>Claim your daily reward</span>
-          </div>
-
-          <div className="task-reward">
-            +0.50
-            <small>AMT</small>
-          </div>
-        </button>
-      )}
-
-      <div className="tasks-list">
-        {tasks.length === 0 ? (
-          <div className="empty-state">
-            <div>🎯</div>
-            <h3>No tasks available</h3>
-            <p>New tasks will appear here.</p>
-          </div>
-        ) : (
-          tasks.map((task) => {
-            const taskId = getTaskId(task);
-            const completed = isTaskCompleted(task);
-            const started = isTaskStarted(task);
-            const reward = getTaskReward(task);
-
-            return (
-              <div
-                className={`task-card ${
-                  completed ? "completed" : ""
-                }`}
-                key={taskId}
-              >
-                <div className="task-icon">
-                  {task?.icon ||
-                    (task?.task_type === "daily_checkin"
-                      ? "🎁"
-                      : task?.task_type === "referral_count"
-                      ? "👥"
-                      : "🎯")}
-                </div>
-
-                <div className="task-info">
-                  <strong>
-                    {task?.title || "AeroMint Task"}
-                  </strong>
-
-                  <span>
-                    {task?.description ||
-                      "Complete this task to earn AMT."}
-                  </span>
-
-                  <div className="task-reward-mobile">
-                    +{formatAmount(reward)} AMT
-                  </div>
-                </div>
-
-                <div className="task-action-area">
-                  <div className="task-reward">
-                    +{formatAmount(reward)}
-                    <small>AMT</small>
-                  </div>
-
-                  {completed ? (
-                    <button
-                      className="completed-btn"
-                      disabled
-                    >
-                      ✓ Completed
-                    </button>
-                  ) : (
-                    <button
-                      className="task-btn"
-                      disabled={
-                        actionLoading ===
-                          `task-start-${taskId}` ||
-                        actionLoading ===
-                          `task-verify-${taskId}` ||
-                        actionLoading ===
-                          `task-claim-${taskId}`
-                      }
-                      onClick={() => {
-                        if (started) {
-                          onTaskVerify(task);
-                        } else {
-                          onTaskAction(task);
-                        }
-                      }}
-                    >
-                      {actionLoading ===
-                      `task-start-${taskId}`
-                        ? "Starting..."
-                        : actionLoading ===
-                          `task-verify-${taskId}`
-                        ? "Verifying..."
-                        : started
-                        ? "Verify"
-                        : task?.url || task?.link
-                        ? "Go"
-                        : "Start"}
-                    </button>
-                  )}
-
-                  {!completed &&
-                    started &&
-                    String(getTaskStatus(task)).toLowerCase() ===
-                      "verified" && (
-                      <button
-                        className="secondary-btn small"
-                        disabled={
-                          actionLoading ===
-                          `task-claim-${taskId}`
-                        }
-                        onClick={() => onTaskClaim(task)}
-                      >
-                        {actionLoading ===
-                        `task-claim-${taskId}`
-                          ? "Claiming..."
-                          : "Claim"}
-                      </button>
-                    )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </section>
+      <button className="ghost-refresh" onClick={refresh}>Refresh Tasks</button>
+    </main>
   );
 }
 
-function ReferralPage({ referrals, user, onCopy }) {
-  const referralCode =
-    referrals?.referral_code ||
-    referrals?.referralCode ||
-    user?.referral_code ||
-    user?.referralCode ||
-    "—";
-
-  const total =
-    Number(
-      referrals?.total ??
-        referrals?.total_referrals ??
-        referrals?.referral_count ??
-        0
-    ) || 0;
-
-  const qualified =
-    Number(
-      referrals?.qualified ??
-        referrals?.qualified_referrals ??
-        referrals?.qualified_count ??
-        0
-    ) || 0;
-
-  const earned =
-    Number(
-      referrals?.earned ??
-        referrals?.referral_earnings ??
-        referrals?.total_earned ??
-        0
-    ) || 0;
-
-  const nextMilestone =
-    referrals?.next_milestone ??
-    Math.ceil((qualified + 1) / 5) * 5;
-
-  const progress =
-    Math.max(
-      0,
-      Math.min(
-        100,
-        ((qualified % 5) / 5) * 100
-      )
-    );
-
+function TaskCard({task,onOpen}) {
+  const icon = task.icon || (String(task.category).toLowerCase()==="daily" ? "calendar" : "users");
+  const completed = task.completed || task.status === "claimed" || task.status === "completed";
   return (
-    <section className="page referral-page">
-      <div className="page-heading">
-        <div>
-          <h1>Referrals</h1>
-          <p>Invite friends and earn AMT</p>
-        </div>
+    <article className="task-card">
+      <div className="task-icon"><Icon name={icon} size={29}/></div>
+      <div className="task-copy">
+        <h3>{task.title}</h3>
+        <p>{task.description || "Complete this task and earn your AMT reward."}</p>
+        <strong><img src="./aeromint-logo.png" alt="" /> +{Number(task.reward || task.reward_amt || 0).toFixed(2)} AMT</strong>
       </div>
-
-      <div className="referral-hero">
-        <div className="referral-icon">👥</div>
-
-        <h2>Invite Friends</h2>
-
-        <p>
-          Share your referral link and earn rewards when
-          referrals qualify.
-        </p>
-
-        <div className="referral-code">
-          <span>Your Referral Code</span>
-          <strong>{referralCode}</strong>
-        </div>
-
-        <button
-          className="primary-btn"
-          onClick={onCopy}
-        >
-          🔗 Copy Referral Link
+      <div className="task-action">
+        <span className="task-count">{completed ? "1/1" : "0/1"}</span>
+        <button className={completed ? "completed-btn" : "go-btn"} onClick={()=>onOpen(task)}>
+          {completed ? <><Icon name="check" size={17}/> Completed</> : <>Go <Icon name="arrow" size={18}/></>}
         </button>
       </div>
-
-      <div className="referral-stats">
-        <div className="stat-card">
-          <span>Total Referrals</span>
-          <strong>{total}</strong>
-        </div>
-
-        <div className="stat-card">
-          <span>Qualified</span>
-          <strong>{qualified}</strong>
-        </div>
-
-        <div className="stat-card">
-          <span>Earned</span>
-          <strong>{formatAmount(earned)} AMT</strong>
-        </div>
-      </div>
-
-      <div className="milestone-card">
-        <div className="milestone-header">
-          <div>
-            <strong>Referral Milestone</strong>
-            <span>
-              {qualified} / {nextMilestone} qualified referrals
-            </span>
-          </div>
-
-          <div className="milestone-reward">
-            +2.00 AMT
-          </div>
-        </div>
-
-        <div className="progress-bar">
-          <div
-            className="progress-fill"
-            style={{
-              width: `${progress}%`,
-            }}
-          />
-        </div>
-
-        <p>
-          Earn a 2.00 AMT bonus at each 5-referral milestone.
-        </p>
-      </div>
-
-      <div className="info-card">
-        <div className="info-icon">💡</div>
-
-        <div>
-          <strong>How Referrals Work</strong>
-
-          <p>
-            Your friend joins AeroMint using your referral
-            link and starts mining.
-          </p>
-
-          <p>
-            Qualified referrals earn the referral reward,
-            with milestone bonuses at 5, 10, 15, 20 and
-            25 qualified referrals.
-          </p>
-        </div>
-      </div>
-    </section>
+    </article>
   );
 }
 
-function AccountPage({
-  user,
-  balance,
-  transactions,
-}) {
-  const firstName =
-    user?.first_name ||
-    user?.firstName ||
-    "AeroMint User";
+function Referrals({data, onCopy}) {
+  const link = data?.referralLink || "";
+  return (
+    <main className="screen">
+      <SectionTitle title="Referrals" subtitle="Invite friends and earn together"
+        right={<div className="mini-balance"><Icon name="users" size={23}/><span>Your Referral Link<br/><b>{fmt(data?.totalReferrals || 0, 4)} <em>AMT</em></b></span></div>}
+      />
+      <section className="feature-banner referral-banner">
+        <div className="feature-icon"><Icon name="gift" size={36}/></div>
+        <div><h2>Invite Friends<br/><span>Get Rewarded!</span></h2><p>Share your referral link with friends. You both earn AMT!</p></div>
+        <div className="people-orbit"><Icon name="users" size={72}/></div>
+      </section>
+      <section className="ref-stats">
+        <RefStat icon="users" label="Total Referrals" value={data?.totalReferrals || 0}/>
+        <RefStat icon="user" label="Active Referrals" value={data?.activeReferrals || 0}/>
+        <RefStat icon="gift" label="Referral Bonus" value={`+${Number(data?.referralBonus || 0.5).toFixed(2)} AMT`} accent/>
+        <RefStat icon="share" label="Your Link Clicks" value={data?.linkClicks || 0}/>
+      </section>
+      <section className="ref-link-card">
+        <div className="ref-link-head"><div className="round-icon"><Icon name="link" size={29}/></div><h3>Your Referral Link</h3></div>
+        <div className="ref-link-line"><div>{link || "Referral link will appear here."}</div><button onClick={()=>onCopy(link)}><Icon name="wallet" size={20}/> Copy</button></div>
+        <div className="ref-buttons"><button className="outline-action" onClick={()=>onCopy(link)}><Icon name="share" size={22}/> Share Link</button><button className="main-action small" onClick={()=>onCopy(link)}><Icon name="share" size={22}/> Invite Friends</button></div>
+      </section>
+      <section className="how-card">
+        <div><h2>How It Works <Icon name="info" size={20}/></h2>
+          {[["1","Share your referral link","Send your link to friends and family."],["2","They join and start mining","Your friend creates an account and starts mining."],["3","You both earn rewards","Get bonus AMT for every active referral."]].map(([n,a,b])=><div className="step" key={n}><span>{n}</span><div><b>{a}</b><small>{b}</small></div></div>)}
+        </div>
+        <div className="how-art"><img src="./aeromint-logo.png" alt=""/></div>
+      </section>
+      <div className="more-friends"><Icon name="gift" size={27}/><div><b>More Friends = More Rewards</b><small>The more people you invite, the more you earn!</small></div><button>View Details <Icon name="arrow" size={17}/></button></div>
+    </main>
+  );
+}
+function RefStat({icon,label,value,accent}) { return <div><Icon name={icon} size={29}/><span>{label}</span><b className={accent?"accent":""}>{value}</b></div>; }
 
-  const username =
-    user?.username ||
-    user?.telegram_username ||
-    "";
+function Account({user, balance, transactions, referrals}) {
+  const name = user?.first_name || user?.firstName || "AeroMiner";
+  const username = user?.username ? `@${user.username}` : "@AeroMintXBot";
+  return (
+    <main className="screen">
+      <SectionTitle title="Account" subtitle="Manage your profile and settings" />
+      <section className="profile-card">
+        <div className="avatar"><span>{name.slice(0,1).toUpperCase()}</span></div>
+        <div className="profile-main"><h2>{name} <span className="verified">✓</span></h2><p>{username}</p><b className="member-pill">● Active Member</b><small>Joined: {user?.created_at ? new Date(user.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "Recently"}</small></div>
+        <div className="profile-logo"><img src="./aeromint-logo.png" alt="AeroMint"/></div>
+        <div className="account-id"><small>Account ID</small><b>{user?.id ? `AMT-${String(user.id).padStart(6,"0")}` : "AMT-001234"}</b><span>▢</span></div>
+        <div className="profile-metrics"><span><Icon name="users" size={25}/> Total Referrals <b>{referrals?.totalReferrals || 0}</b></span><span><Icon name="pickaxe" size={25}/> Mining Power <b>+1.00 AMT/h</b></span></div>
+      </section>
+
+      <section className="wallet-card"><div className="round-icon"><Icon name="wallet" size={30}/></div><div><h3>Wallet Balance <Icon name="info" size={18}/></h3><b>{fmt(balance)} <em>AMT</em></b><small>≈ $0.00 (Not a real currency value)</small></div><button className="main-action small" disabled><Icon name="wallet" size={20}/> Withdraw <Icon name="arrow" size={19}/></button></section>
+
+      <section className="settings-card">
+        {[
+          ["user","Profile Information","Update your personal details"],
+          ["shield","Security","Change password & security settings"],
+          ["link","Linked Accounts","Connect Telegram, X (Twitter), etc."],
+          ["history","Transaction History","View your mining, rewards and activity"],
+          ["users","Referral Details","Your referral link and earnings"],
+          ["headset","Help & Support","Get help or contact us"],
+          ["info","About AeroMint","Version 1.0.0"],
+        ].map(([icon,title,sub])=><button className="settings-row" key={title}><div className="round-icon"><Icon name={icon} size={24}/></div><span><b>{title}</b><small>{sub}</small></span><Icon name="arrow" size={23}/></button>)}
+        <div className="premium-row"><div className="round-icon"><Icon name="crown" size={25}/></div><span><b>Upgrade to Premium</b><small>Get more mining power, higher rewards and special benefits!</small></span><button disabled><Icon name="crown" size={18}/> Upgrade <Icon name="arrow" size={17}/></button></div>
+      </section>
+
+      {transactions?.length > 0 && <section className="transactions"><h3>Recent Transactions</h3>{transactions.slice(0,5).map(t=><div key={t.id}><span>{t.description || t.type}</span><b>+{Number(t.amount||0).toFixed(4)} AMT</b></div>)}</section>}
+    </main>
+  );
+}
+
+function BottomNav({page,setPage}) {
+  return <nav className="bottom-nav">
+    {[["mining","pickaxe","Mining"],["tasks","calendar","Tasks"],["referrals","users","Referrals"],["account","user","Account"]].map(([id,icon,label])=>
+      <button key={id} className={page===id?"active":""} onClick={()=>setPage(id)}><Icon name={icon} size={28}/><span>{label}</span></button>
+    )}
+  </nav>;
+}
+
+export default function App() {
+  const [page,setPage] = useState("mining");
+  const [user,setUser] = useState(null);
+  const [dashboard,setDashboard] = useState(null);
+  const [mining,setMining] = useState(null);
+  const [tasks,setTasks] = useState([]);
+  const [referrals,setReferrals] = useState(null);
+  const [transactions,setTransactions] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [busy,setBusy] = useState(false);
+  const [error,setError] = useState("");
+
+  const initData = tg?.initData || "";
+  const headers = { "Content-Type":"application/json", "X-Telegram-Init-Data":initData, "X-Telegram-Start-Param": tg?.initDataUnsafe?.start_param || "" };
+
+  async function api(path, options={}) {
+    const res = await fetch(`${API_BASE}${path}`, { ...options, headers:{...headers,...(options.headers||{})} });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || `Request failed (${res.status})`);
+    return data;
+  }
+
+  async function loadApp() {
+    setError("");
+    try {
+      if (tg) { tg.ready(); tg.expand(); }
+      const auth = await api("/api/auth/telegram",{method:"POST",body:JSON.stringify({initData})});
+      const me = await api("/api/me");
+      const dash = await api("/api/dashboard");
+      const mine = await api("/api/mining");
+      const taskData = await api("/api/tasks");
+      const refs = await api("/api/referrals");
+      const tx = await api("/api/transactions");
+      setUser(auth.user || me.user || me);
+      setDashboard(dash);
+      setMining(mine);
+      setTasks(taskData.tasks || []);
+      setReferrals(refs);
+      setTransactions(tx.transactions || []);
+    } catch (e) {
+      setError(e.message || "Unable to load AeroMint.");
+    } finally { setLoading(false); }
+  }
+
+  useEffect(()=>{ loadApp(); },[]);
+
+  async function startMining() {
+    setBusy(true);
+    try { await api("/api/mining/start",{method:"POST"}); await loadApp(); }
+    catch(e){setError(e.message)}
+    finally{setBusy(false)}
+  }
+
+  async function refreshTasks(){ try { const d=await api("/api/tasks"); setTasks(d.tasks||[]); } catch(e){setError(e.message)} }
+
+  async function openTask(task) {
+    try {
+      await api(`/api/tasks/${task.id}/start`,{method:"POST"});
+      const verify = await api(`/api/tasks/${task.id}/verify`,{method:"POST"});
+      if (verify.ok) await api(`/api/tasks/${task.id}/claim`,{method:"POST"});
+      await loadApp();
+    } catch(e){ setError(e.message); }
+  }
+
+  async function copyReferral(link) {
+    if (!link) return;
+    try {
+      if (navigator.clipboard) await navigator.clipboard.writeText(link);
+      if (tg?.openTelegramLink) tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}`);
+    } catch {}
+  }
+
+  const balance = dashboard?.balance ?? user?.balance ?? 0;
+
+  if (loading) return <div className="app-shell"><div className="loading"><img src="./aeromint-logo.png" alt="AeroMint"/><div className="spinner"/><p>Loading AeroMint...</p></div></div>;
 
   return (
-    <section className="page account-page">
-      <div className="page-heading">
-        <div>
-          <h1>Account</h1>
-          <p>Your AeroMint account</p>
-        </div>
-      </div>
-
-      <div className="profile-card">
-        <div className="profile-avatar">
-          {(firstName?.[0] || "A").toUpperCase()}
-        </div>
-
-        <div>
-          <h2>{firstName}</h2>
-
-          {username && (
-            <p>
-              @{String(username).replace(/^@/, "")}
-            </p>
-          )}
-
-          <small>AeroMint Member</small>
-        </div>
-      </div>
-
-      <div className="account-balance-card">
-        <span>Available Balance</span>
-
-        <strong>
-          {formatAmount(balance)}
-          <small> AMT</small>
-        </strong>
-      </div>
-
-      <div className="transactions-section">
-        <div className="section-title">
-          <h2>Transactions</h2>
-          <span>{transactions.length}</span>
-        </div>
-
-        {transactions.length === 0 ? (
-          <div className="empty-state">
-            <div>💳</div>
-            <h3>No transactions yet</h3>
-            <p>
-              Your AMT reward transactions will appear here.
-            </p>
-          </div>
-        ) : (
-          <div className="transactions-list">
-            {transactions.map((transaction, index) => {
-              const amount = Number(
-                transaction?.amount ??
-                  transaction?.value ??
-                  0
-              );
-
-              const positive = amount >= 0;
-
-              const type =
-                transaction?.type ||
-                transaction?.transaction_type ||
-                "Reward";
-
-              const description =
-                transaction?.description ||
-                transaction?.reason ||
-                type;
-
-              const date =
-                transaction?.created_at ||
-                transaction?.createdAt ||
-                transaction?.timestamp;
-
-              return (
-                <div
-                  className="transaction-item"
-                  key={
-                    transaction?.id ||
-                    transaction?.transaction_id ||
-                    index
-                  }
-                >
-                  <div
-                    className={`transaction-icon ${
-                      positive ? "positive" : "negative"
-                    }`}
-                  >
-                    {positive ? "+" : "−"}
-                  </div>
-
-                  <div className="transaction-info">
-                    <strong>{description}</strong>
-
-                    <span>
-                      {date
-                        ? new Date(date).toLocaleString()
-                        : "Recent"}
-                    </span>
-                  </div>
-
-                  <div
-                    className={`transaction-amount ${
-                      positive ? "positive" : "negative"
-                    }`}
-                  >
-                    {positive ? "+" : ""}
-                    {formatAmount(amount)} AMT
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </section>
+    <div className="app-shell">
+      <Header/>
+      {error && <div className="error-bar">{error}<button onClick={()=>setError("")}>×</button></div>}
+      {page==="mining" && <Mining data={{...(mining||{}),balance,totalMined:dashboard?.totalMined ?? user?.total_mined}} onStart={startMining} onRefresh={loadApp} busy={busy}/>}
+      {page==="tasks" && <Tasks tasks={tasks} balance={balance} refresh={refreshTasks} onOpenTask={openTask}/>}
+      {page==="referrals" && <Referrals data={referrals} onCopy={copyReferral}/>}
+      {page==="account" && <Account user={user} balance={balance} transactions={transactions} referrals={referrals}/>}
+      <BottomNav page={page} setPage={setPage}/>
+    </div>
   );
 }
-
-export default App;
