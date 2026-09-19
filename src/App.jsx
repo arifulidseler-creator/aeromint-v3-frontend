@@ -377,7 +377,7 @@ export default function App() {
         await api(`/api/tasks/${task.id}/start`, { method: "POST" });
 
         if (actionUrl) {
-          if (tg?.openTelegramLink && /^https?:\\/\\/t\\.me\\//i.test(actionUrl)) {
+          if (tg?.openTelegramLink && /^https?:\/\/t\.me\//i.test(actionUrl)) {
             tg.openTelegramLink(actionUrl);
           } else {
             window.open(actionUrl, "_blank", "noopener,noreferrer");
