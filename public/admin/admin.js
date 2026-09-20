@@ -51,8 +51,8 @@ function normalizeTask(t) {
     reward: Number(t.reward ?? t.reward_amt ?? 0),
     category: t.category ?? "social",
     verificationType: t.verification_type ?? t.verificationType ?? "none",
-    target: t.target ?? t.url ?? t.link ?? "",
-    active: Boolean(t.active ?? true)
+    target: t.action_url ?? t.target ?? t.url ?? t.link ?? "",
+    active: Boolean(t.is_active ?? t.active ?? true)
   };
 }
 
@@ -202,8 +202,8 @@ taskList.addEventListener("click", async (e) => {
     if (!task) return;
     try {
       await api(`/api/admin/tasks/${encodeURIComponent(task.id)}/status`, {
-        method: "PUT",
-        body: JSON.stringify({ active: !task.active })
+        method: "PATCH",
+        body: JSON.stringify({ is_active: !task.active })
       });
       showMessage(`Task ${task.active ? "disabled" : "enabled"}.`);
       await loadTasks();
