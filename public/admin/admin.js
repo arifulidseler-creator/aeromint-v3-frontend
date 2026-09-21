@@ -156,7 +156,7 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  const payload = { title, description, reward, category, verification_type, target, active };
+  const payload = { title, description, reward, category, verification_type, action_url: target || null, is_active: active };
   const saveBtn = $("saveBtn");
   saveBtn.disabled = true;
 
