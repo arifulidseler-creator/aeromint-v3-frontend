@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import logo from "./aeromint-logo.png";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -53,7 +54,7 @@ function Header() {
   return (
     <header className="top-header">
       <div className="brand">
-        <img src="./aeromint-logo.png" alt="AeroMint" className="brand-logo" />
+        <img src={logo} alt="AeroMint" className="brand-logo" />
         <div>
           <div className="brand-name"><span>Aero</span> <b>Mint</b></div>
           <div className="brand-tag">Mine <i>•</i> Earn <i>•</i> Grow</div>
@@ -123,7 +124,7 @@ function Mining({ data, onRefresh, onStart, busy }) {
       <section className="hero-mining">
         <div className="hero-visual">
           <div className="energy-ring" />
-          <img src="./aeromint-logo.png" alt="" />
+          <img src={logo} alt="" />
         </div>
         <div className="hero-text">
           <h2>{active ? "Mining Active" : "Start Mining"}</h2>
@@ -191,7 +192,7 @@ function Tasks({ tasks, balance, refresh, onOpenTask }) {
       <section className="feature-banner">
         <div className="feature-icon"><Icon name="gift" size={36}/></div>
         <div><h2>Complete Tasks<br/>Earn More <span>AMT</span></h2><p>Simple tasks, real rewards. Complete daily tasks and grow your balance!</p></div>
-        <img src="./aeromint-logo.png" alt="" />
+        <img src={logo} alt="" />
       </section>
       <div className="task-tabs">
         {tabs.map(([id,label,icon]) => <button key={id} className={tab===id ? "selected":""} onClick={()=>setTab(id)}><Icon name={icon} size={25}/>{label}</button>)}
@@ -229,7 +230,7 @@ function TaskCard({task,onOpen}) {
       <div className="task-copy">
         <h3>{task.title}</h3>
         <p>{task.description || "Complete this task and earn your AMT reward."}</p>
-        <strong><img src="./aeromint-logo.png" alt="" /> +{Number(task.reward || task.reward_amt || task.reward_amount || 0).toFixed(2)} AMT</strong>
+        <strong><img src={logo} alt="" /> +{Number(task.reward || task.reward_amt || task.reward_amount || 0).toFixed(2)} AMT</strong>
       </div>
       <div className="task-action">
         <span className="task-count">{completed ? "1/1" : "0/1"}</span>
@@ -275,7 +276,7 @@ function Referrals({data, onCopy}) {
         <div><h2>How It Works <Icon name="info" size={20}/></h2>
           {[["1","Share your referral link","Send your link to friends and family."],["2","They join and start mining","Your friend creates an account and starts mining."],["3","You both earn rewards","Get bonus AMT for every active referral."]].map(([n,a,b])=><div className="step" key={n}><span>{n}</span><div><b>{a}</b><small>{b}</small></div></div>)}
         </div>
-        <div className="how-art"><img src="./aeromint-logo.png" alt=""/></div>
+        <div className="how-art"><img src={logo} alt=""/></div>
       </section>
       <div className="more-friends"><Icon name="gift" size={27}/><div><b>More Friends = More Rewards</b><small>The more people you invite, the more you earn!</small></div><button>View Details <Icon name="arrow" size={17}/></button></div>
     </main>
@@ -292,7 +293,7 @@ function Account({user, balance, transactions, referrals}) {
       <section className="profile-card">
         <div className="avatar"><span>{name.slice(0,1).toUpperCase()}</span></div>
         <div className="profile-main"><h2>{name} <span className="verified">✓</span></h2><p>{username}</p><b className="member-pill">● Active Member</b><small>Joined: {user?.created_at ? new Date(user.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "Recently"}</small></div>
-        <div className="profile-logo"><img src="./aeromint-logo.png" alt="AeroMint"/></div>
+        <div className="profile-logo"><img src={logo} alt="AeroMint"/></div>
         <div className="account-id"><small>Account ID</small><b>{user?.id ? `AMT-${String(user.id).padStart(6,"0")}` : "AMT-001234"}</b><span>▢</span></div>
         <div className="profile-metrics"><span><Icon name="users" size={25}/> Total Referrals <b>{referrals?.totalReferrals || 0}</b></span><span><Icon name="pickaxe" size={25}/> Mining Power <b>+1.00 AMT/h</b></span></div>
       </section>
@@ -400,39 +401,68 @@ export default function App() {
     } catch { return false; }
   }
 
+  function resolveTaskUrl(task, started = {}) {
+    const candidates = [
+      started?.actionUrl,
+      started?.action_url,
+      started?.task?.action_url,
+      task?.action_url,
+      task?.actionUrl,
+      task?.target,
+      task?.url,
+      task?.link,
+      task?.verification_config?.url,
+      task?.verification_config?.targetUrl,
+      task?.verification_config?.channelUrl,
+      task?.verification_config?.channel_url,
+    ];
+    for (const value of candidates) {
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+    return "";
+  }
+
   async function openTask(task) {
+    setBusy(true);
     try {
-      const status = String(task.status || "").toLowerCase();
-      const completed = Boolean(task.completed || ["claimed","completed"].includes(status));
+      const status = String(task.status || task.user_status || "available").toLowerCase();
+      const completed = Boolean(task.completed || ["claimed", "completed"].includes(status));
       if (completed) return;
 
       if (status === "verified") {
-        await api(`/api/tasks/${task.id}/claim`,{method:"POST"});
+        await api(`/api/tasks/${task.id}/claim`, { method: "POST" });
         await loadApp();
         return;
       }
 
       if (status === "started" || status === "in_progress") {
-        await api(`/api/tasks/${task.id}/verify`,{method:"POST"});
-        await refreshTasks();
+        await api(`/api/tasks/${task.id}/verify`, { method: "POST" });
+        await loadApp();
         return;
       }
 
-      const started = await api(`/api/tasks/${task.id}/start`,{method:"POST"});
+      const started = await api(`/api/tasks/${task.id}/start`, { method: "POST" });
+      const target = resolveTaskUrl(task, started);
       await refreshTasks();
 
-      const type = String(task.verification_type || task.task_type || "").toLowerCase();
-      const url = started.actionUrl || task.action_url || "";
-      const external = Boolean(url) ||
-        ["link","external_link","url","video","youtube","video_watch","manual","telegram","telegram_membership"].includes(type);
-
-      if (external) {
-        openExternalUrl(url);
-      } else {
-        await api(`/api/tasks/${task.id}/verify`,{method:"POST"});
-        await refreshTasks();
+      if (target) {
+        openExternalUrl(target);
+        return;
       }
-    } catch(e){ setError(e.message); }
+
+      // No external target: allow only genuinely self-contained tasks to move to Verify.
+      const type = String(task.verification_type || task.task_type || "").toLowerCase();
+      if (["none", "daily", "referral_count", "manual", "video", "video_watch", "youtube", "link", "url", "external_link", "telegram", "telegram_membership"].includes(type)) {
+        await api(`/api/tasks/${task.id}/verify`, { method: "POST" });
+        await loadApp();
+        return;
+      }
+      throw new Error("This task has no target link configured in Admin Panel.");
+    } catch (e) {
+      setError(e.message || "Task action failed.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function copyReferral(link) {
@@ -445,7 +475,7 @@ export default function App() {
 
   const balance = dashboard?.balance ?? user?.balance ?? 0;
 
-  if (loading) return <div className="app-shell"><div className="loading"><img src="./aeromint-logo.png" alt="AeroMint"/><div className="spinner"/><p>Loading AeroMint...</p></div></div>;
+  if (loading) return <div className="app-shell"><div className="loading"><img src={logo} alt="AeroMint"/><div className="spinner"/><p>Loading AeroMint...</p></div></div>;
 
   return (
     <div className="app-shell">
